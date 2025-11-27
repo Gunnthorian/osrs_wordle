@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSRS Wordle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --correct: #4a7c23;
+            --present: #b8860b;
+            --absent: #3a3a3a;
+            --tile-border: #5c4a32;
+            --tile-bg: #2a2118;
+            --key-bg: #4a3f35;
+            --text-gold: #d4af37;
+            --text-light: #e8dcc4;
+            --bg-dark: #1a1410;
+            --bg-medium: #2d241c;
+        }
+
+        body {
+            font-family: 'Crimson Text', serif;
+            background: var(--bg-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-light);
+            background-image: 
+                radial-gradient(ellipse at top, #2d241c 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, #1f1915 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L30 60M0 30L60 30' stroke='%23ffffff' stroke-opacity='0.02' stroke-width='1'/%3E%3C/svg%3E");
+        }
+
+        header {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--tile-border);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            color: var(--text-gold);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            letter-spacing: 4px;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #8b7355;
+            margin-top: 5px;
+            letter-spacing: 2px;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 0 10px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-rows: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .tile {
+            width: 62px;
+            height: 62px;
+            border: 3px solid var(--tile-border);
+            background: var(--tile-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Cinzel', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            transition: transform 0.1s, border-color 0.2s;
+        }
+
+        .tile.filled {
+            border-color: #7a6a52;
+            animation: pop 0.1s ease;
+        }
+
+        .tile.reveal {
+            animation: flip 0.5s ease forwards;
+        }
+
+        .tile.correct {
+            background: var(--correct);
+            border-color: var(--correct);
+        }
+
+        .tile.present {
+            background: var(--present);
+            border-color: var(--present);
+        }
+
+        .tile.absent {
+            background: var(--absent);
+            border-color: var(--absent);
+        }
+
+        @keyframes pop {
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes flip {
+            0% { transform: rotateX(0deg); }
+            50% { transform: rotateX(90deg); }
+            100% { transform: rotateX(0deg); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        .row.shake {
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .tile.bounce {
+            animation: bounce 0.5s ease;
+        }
+
+        #keyboard {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .key {
+            min-width: 43px;
+            height: 58px;
+            border: none;
+            border-radius: 6px;
+            background: var(--key-bg);
+            color: var(--text-light);
+            font-family: 'Cinzel', serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 0 3px 0 #2a231c, 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .key:hover {
+            background: #5a4f45;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 0 #2a231c, 0 6px 8px rgba(0,0,0,0.3);
+        }
+
+        .key:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #2a231c;
+        }
+
+        .key.wide {
+            min-width: 70px;
+            font-size: 0.75rem;
+        }
+
+        .key.correct {
+            background: var(--correct);
+        }
+
+        .key.present {
+            background: var(--present);
+        }
+
+        .key.absent {
+            background: var(--absent);
+        }
+
+        #message {
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toast {
+            background: var(--bg-medium);
+            border: 2px solid var(--text-gold);
+            color: var(--text-gold);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: 'Cinzel', serif;
+            font-size: 1rem;
+            animation: fadeIn 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            color: #5c4a32;
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--text-gold);
+            text-decoration: none;
+        }
+
+        /* Decorative corners */
+        .corner-decoration {
+            position: fixed;
+            width: 80px;
+            height: 80px;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .corner-decoration::before,
+        .corner-decoration::after {
+            content: '';
+            position: absolute;
+            background: var(--text-gold);
+        }
+
+        .corner-tl { top: 10px; left: 10px; }
+        .corner-tl::before { width: 40px; height: 3px; top: 0; left: 0; }
+        .corner-tl::after { width: 3px; height: 40px; top: 0; left: 0; }
+
+        .corner-tr { top: 10px; right: 10px; }
+        .corner-tr::before { width: 40px; height: 3px; top: 0; right: 0; }
+        .corner-tr::after { width: 3px; height: 40px; top: 0; right: 0; }
+
+        .corner-bl { bottom: 10px; left: 10px; }
+        .corner-bl::before { width: 40px; height: 3px; bottom: 0; left: 0; }
+        .corner-bl::after { width: 3px; height: 40px; bottom: 0; left: 0; }
+
+        .corner-br { bottom: 10px; right: 10px; }
+        .corner-br::before { width: 40px; height: 3px; bottom: 0; right: 0; }
+        .corner-br::after { width: 3px; height: 40px; bottom: 0; right: 0; }
+
+        @media (max-width: 500px) {
+            .tile {
+                width: 52px;
+                height: 52px;
+                font-size: 1.6rem;
+            }
+
+            .key {
+                min-width: 32px;
+                height: 50px;
+                font-size: 0.85rem;
+            }
+
+            .key.wide {
+                min-width: 55px;
+                font-size: 0.65rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="corner-decoration corner-tl"></div>
+    <div class="corner-decoration corner-tr"></div>
+    <div class="corner-decoration corner-bl"></div>
+    <div class="corner-decoration corner-br"></div>
+
+    <header>
+        <h1>OSRS Wordle</h1>
+        <p class="subtitle">Guess the RuneScape word</p>
+    </header>
+
+    <div id="game-container">
+        <div id="message"></div>
+        <div id="board"></div>
+        <div id="keyboard"></div>
+    </div>
+
+    <footer>
+        Press <strong>Enter</strong> to submit • <strong>Backspace</strong> to delete
+    </footer>
+
+    <script>
+        const WORDS = [
+            'aggie', 'ahrim', 'altar', 'arrav', 'arrow', 'black', 'blood', 'bones',
+            'boots', 'bread', 'burgh', 'canoe', 'capes', 'chaos', 'chest', 'claws',
+            'coins', 'death', 'demon', 'diary', 'drake', 'druid', 'dwarf', 'earth',
+            'elite', 'fairy', 'ghast', 'ghost', 'giant', 'glove', 'gnome', 'grace',
+            'grape', 'green', 'guard', 'guild', 'herbs', 'heron', 'herbi', 'house',
+            'hydra', 'jelly', 'karil', 'kebab', 'knife', 'konar', 'lance', 'level',
+            'lunar', 'magic', 'maple', 'melee', 'nieve', 'party', 'patch', 'pearl',
+            'piety', 'pizza', 'plank', 'pouch', 'prime', 'quest', 'raids', 'range',
+            'rings', 'robes', 'rogue', 'royal', 'runes', 'salve', 'santa', 'scale',
+            'seers', 'seren', 'shade', 'shard', 'shark', 'skill', 'skull', 'slime',
+            'smoke', 'snape', 'spear', 'spell', 'staff', 'steam', 'steel', 'super',
+            'swamp', 'sword', 'thief', 'tiara', 'token', 'torag', 'totem', 'trade',
+            'troll', 'trout', 'tutor', 'venom', 'verac', 'vials', 'water', 'white',
+            'witch', 'world', 'wrath', 'xeric', 'zaros'
+        ];
+
+        const KEYBOARD_ROWS = [
+            ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+            ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+            ['enter', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'backspace']
+        ];
+
+        let targetWord = WORDS[Math.floor(Math.random() * WORDS.length)];
+        let currentRow = 0;
+        let currentTile = 0;
+        let gameOver = false;
+        let currentGuess = [];
+
+        const board = document.getElementById('board');
+        const keyboard = document.getElementById('keyboard');
+        const messageEl = document.getElementById('message');
+
+        // Create board
+        for (let i = 0; i < 6; i++) {
+            const row = document.createElement('div');
+            row.className = 'row';
+            row.id = `row-${i}`;
+            for (let j = 0; j < 5; j++) {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.id = `tile-${i}-${j}`;
+                row.appendChild(tile);
+            }
+            board.appendChild(row);
+        }
+
+        // Create keyboard
+        KEYBOARD_ROWS.forEach(row => {
+            const rowEl = document.createElement('div');
+            rowEl.className = 'keyboard-row';
+            row.forEach(key => {
+                const keyEl = document.createElement('button');
+                keyEl.className = 'key' + (key.length > 1 ? ' wide' : '');
+                keyEl.id = `key-${key}`;
+                keyEl.textContent = key === 'backspace' ? '⌫' : key;
+                keyEl.addEventListener('click', () => handleKey(key));
+                rowEl.appendChild(keyEl);
+            });
+            keyboard.appendChild(rowEl);
+        });
+
+        function handleKey(key) {
+            if (gameOver) return;
+
+            if (key === 'enter') {
+                submitGuess();
+            } else if (key === 'backspace') {
+                deleteLetter();
+            } else if (currentTile < 5) {
+                addLetter(key);
+            }
+        }
+
+        function addLetter(letter) {
+            const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+            tile.textContent = letter;
+            tile.classList.add('filled');
+            currentGuess.push(letter);
+            currentTile++;
+        }
+
+        function deleteLetter() {
+            if (currentTile > 0) {
+                currentTile--;
+                const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+                tile.textContent = '';
+                tile.classList.remove('filled');
+                currentGuess.pop();
+            }
+        }
+
+        function submitGuess() {
+            if (currentGuess.length !== 5) {
+                showMessage('Not enough letters');
+                shakeRow();
+                return;
+            }
+
+            const guess = currentGuess.join('');
+            
+            // Check if it's a valid word (in our word list)
+            if (!WORDS.includes(guess)) {
+                showMessage('Not in word list');
+                shakeRow();
+                return;
+            }
+
+            revealTiles(guess);
+        }
+
+        function revealTiles(guess) {
+            const targetLetters = targetWord.split('');
+            const guessLetters = guess.split('');
+            const results = new Array(5).fill('absent');
+            const used = new Array(5).fill(false);
+
+            // First pass: find correct letters
+            for (let i = 0; i < 5; i++) {
+                if (guessLetters[i] === targetLetters[i]) {
+                    results[i] = 'correct';
+                    used[i] = true;
+                }
+            }
+
+            // Second pass: find present letters
+            for (let i = 0; i < 5; i++) {
+                if (results[i] === 'correct') continue;
+                
+                for (let j = 0; j < 5; j++) {
+                    if (!used[j] && guessLetters[i] === targetLetters[j]) {
+                        results[i] = 'present';
+                        used[j] = true;
+                        break;
+                    }
+                }
+            }
+
+            // Animate tiles
+            for (let i = 0; i < 5; i++) {
+                const tile = document.getElementById(`tile-${currentRow}-${i}`);
+                const delay = i * 300;
+
+                setTimeout(() => {
+                    tile.classList.add('reveal');
+                    setTimeout(() => {
+                        tile.classList.add(results[i]);
+                        updateKeyboard(guessLetters[i], results[i]);
+                    }, 250);
+                }, delay);
+            }
+
+            // Check win/lose after animation
+            setTimeout(() => {
+                if (guess === targetWord) {
+                    gameOver = true;
+                    showMessage('Victory!');
+                    bounceRow();
+                } else if (currentRow === 5) {
+                    gameOver = true;
+                    showMessage(targetWord.toUpperCase());
+                } else {
+                    currentRow++;
+                    currentTile = 0;
+                    currentGuess = [];
+                }
+            }, 1500);
+        }
+
+        function updateKeyboard(letter, state) {
+            const key = document.getElementById(`key-${letter}`);
+            if (!key) return;
+
+            // Only upgrade state: absent -> present -> correct
+            const currentState = key.classList.contains('correct') ? 'correct' :
+                                key.classList.contains('present') ? 'present' :
+                                key.classList.contains('absent') ? 'absent' : '';
+
+            if (state === 'correct') {
+                key.classList.remove('present', 'absent');
+                key.classList.add('correct');
+            } else if (state === 'present' && currentState !== 'correct') {
+                key.classList.remove('absent');
+                key.classList.add('present');
+            } else if (state === 'absent' && !currentState) {
+                key.classList.add('absent');
+            }
+        }
+
+        function showMessage(msg) {
+            messageEl.innerHTML = `<div class="toast">${msg}</div>`;
+            if (!gameOver) {
+                setTimeout(() => {
+                    messageEl.innerHTML = '';
+                }, 2000);
+            }
+        }
+
+        function shakeRow() {
+            const row = document.getElementById(`row-${currentRow}`);
+            row.classList.add('shake');
+            setTimeout(() => row.classList.remove('shake'), 400);
+        }
+
+        function bounceRow() {
+            for (let i = 0; i < 5; i++) {
+                const tile = document.getElementById(`tile-${currentRow}-${i}`);
+                setTimeout(() => {
+                    tile.classList.add('bounce');
+                }, i * 100);
+            }
+        }
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleKey('enter');
+            } else if (e.key === 'Backspace') {
+                handleKey('backspace');
+            } else if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
+                handleKey(e.key.toLowerCase());
+            }
+        });
+    </script>
+</body>
+</html>
+
